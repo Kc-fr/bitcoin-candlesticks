@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <title>Bitcoin Chart</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f0f0f0;
+      margin: 0;
+    }
+    canvas {
+      margin-top: 20px;
+       }
+    h1 {
+      margin: 20px 0;
+      font-size: 24px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>180 days of Bitcoin (BTC/USD)</h1>
+  <script>
+    let btcData = [];
+    let maxPrice = 0, minPrice = 0;
+    let lastClosePrice = 0;
+
+    function setup() {
+      createCanvas(800, 400);
+      fetchData();
+    }
+
+    function draw() {
+      background(220);
+
+      // Draw Bitcoin candlestick chart
+      drawBitcoinCandlestickChart();
+
+      // Draw time and date
+      drawTimeAndDate();
+    }
+
+    function drawBitcoinCandlestickChart() {
+      push(); // Save current state
+      translate(20, 0);
+
+      stroke(0);
+      line(50, 350, 750, 350); // x-axis
+      line(50, 100, 50, 350); // y-axis
+
+      // Draw x-axis labels and marks
+      for (let i = 0; i <= 180; i += 30) {
+        let x = map(i, 0, 180, 50, 750);
+        stroke(0);
+        line(x, 345, x, 355); // Tick mark
+        noStroke();
+        fill(0);
+        textAlign(CENTER);
+        if (i < 180) { // Skip 0 day label to make room for latest price
+          text('-' + (180 - i) + " days", x, 370); // Label
+        }
+      }
+
+      // Draw the min price label
+      stroke(0);
+      line(45, 350, 55, 350); // Origin tick mark
+      noStroke();
+      fill(0);
+      textAlign(LEFT);
+      text("Low:", -10, 330); // Origin label
+      text('$' + minPrice, -5, 345); // Min price label
+
+      if (btcData.length === 0) return;
+
+      // Draw the max price label
+      stroke(0);
+      line(45, 100, 55, 100); // Max tick mark
+      noStroke();
+      fill(0);
+      textAlign(LEFT);
+      text('High:', -10, 80);
+      text('$' + maxPrice, -5, 95); // Max price label
+
+      // Draw the latest price label
+      stroke(0);
+      line(45, 350, 55, 350); // tick mark
+      noStroke();
+      fill(0);
+      textAlign(RIGHT);
+      text('$' + lastClosePrice, 760, 370); //  Latest price
+
+      // Plot candlestick data
+      for (let i = 0; i < btcData.length; i++) {
+        let x = map(i, 0, btcData.length - 1, 50, 750);
+        let o = map(btcData[i].open, minPrice, maxPrice, 350, 100);
+        let h = map(btcData[i].high, minPrice, maxPrice, 350, 100);
+        let l = map(btcData[i].low, minPrice, maxPrice, 350, 100);
+        let c = map(btcData[i].close, minPrice, maxPrice, 350, 100);
+
+        stroke(0);
+        line(x + 2, h, x + 2, l); // High-low line
+
+        noStroke();
+        if (btcData[i].close > btcData[i].open) {
+          fill(0, 255, 0); // Green for rising
+        } else {
+          fill(255, 0, 0); // Red for falling
+        }
+        rect(x + 1, o, 2, c - o);
+
+      }
+      pop(); // Restore state
+    }
+
+    function drawTimeAndDate() {
+      fill(0);
+      noStroke();
+      textAlign(CENTER);
+      let currentTime = nf(hour(), 2) + ':' + nf(minute(), 2) + ':' + nf(second(), 2);
+      let currentDate = day() + ' / ' + getMonthName(month()) + ' / \'' + nf(year() % 100, 2);
+      text(currentTime, width / 2, 20);
+      text(currentDate, width / 2, 35);
+    }
+// just to make it easier with the name of the month instead of the number
+    function getMonthName(m) {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return months[m - 1];
+    }
+    
+    function fetchData() {
+      let url = `https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=86400&limit=180`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          btcData = data.data.ohlc.map(item => ({
+            open: parseFloat(item.open),
+            high: parseFloat(item.high),
+            low: parseFloat(item.low),
+            close: parseFloat(item.close)
+          }));
+          maxPrice = Math.max(...btcData.map(item => item.high));
+          minPrice = Math.min(...btcData.map(item => item.low));
+          lastClosePrice = btcData[btcData.length - 1].close;
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    }
+
+    // Update chart daily at midnight
+    setInterval(fetchData, 86400000); // 86400000 ms = 24 hours
+  </script>
+</body>
+</html>
